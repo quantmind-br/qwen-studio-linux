@@ -36,7 +36,7 @@ async function api(path, options = {}) {
     },
   });
   if (response.status === 404) return null;
-  assert(response.ok, `GitHub API ${path} failed with ${response.status}: ${await response.text()}`);
+  if (!response.ok) throw new Error(`GitHub API ${path} failed with ${response.status}: ${await response.text()}`);
   return response.status === 204 ? null : await response.json();
 }
 
@@ -57,7 +57,10 @@ const expected = new Map(await Promise.all(expectedNames.map(async (name) => {
   return [name, { path, size: (await stat(path)).size, sha256: await sha256(path) }];
 })));
 
-let release = await api(`/repos/${repository}/releases/tags/${tag}`);
+const releases = await api(`/repos/${repository}/releases?per_page=100`);
+const matching = (releases ?? []).filter((entry) => entry.tag_name === tag);
+assert(matching.length <= 1, `Multiple releases share tag ${tag}`);
+let release = matching[0] ?? null;
 if (release && !release.draft) {
   assert(release.assets.length === expected.size, "Published release is incomplete");
   for (const asset of release.assets) {
