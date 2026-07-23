@@ -234,7 +234,9 @@ async function validateMacApp(dmg, release) {
   try {
     await runCapture("hdiutil", ["attach", "-readonly", "-nobrowse", "-mountpoint", mount, dmg]);
     const entries = (await readdir(mount, { withFileTypes: true })).filter((entry) => !entry.name.startsWith("."));
-    assert(entries.length === 1 && entries[0].isDirectory() && entries[0].name === "Qwen.app", `DMG must contain exactly Qwen.app, found ${entries.map((entry) => entry.name).join(", ")}`);
+    const unexpected = entries.filter((entry) => entry.name !== "Qwen.app" && entry.name !== "Applications");
+    const qwenApp = entries.filter((entry) => entry.name === "Qwen.app" && entry.isDirectory());
+    assert(qwenApp.length === 1 && unexpected.length === 0, `DMG must contain Qwen.app and optionally the Applications alias, found ${entries.map((entry) => entry.name).join(", ")}`);
     const app = join(mount, "Qwen.app");
     await runCapture("codesign", ["--verify", "--deep", "--strict", "--verbose=2", app]);
     await runCapture("spctl", ["-a", "-vv", "-t", "exec", app]);
