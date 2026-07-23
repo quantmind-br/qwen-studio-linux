@@ -209,7 +209,7 @@ async function convertIcons() {
   const source = join(iconsDir, ".source.png");
   await writeFile(source, largest.payload);
   for (const size of [16, 32, 48, 64, 128, 256, 512, 1024]) {
-    await run("magick", [source, "-filter", "Lanczos", "-resize", `${size}x${size}`, join(iconsDir, `${size}x${size}.png`)]);
+    await run(process.platform === "linux" ? "convert" : "magick", [source, "-filter", "Lanczos", "-resize", `${size}x${size}`, join(iconsDir, `${size}x${size}.png`)]);
   }
   await rm(source, { force: true });
 }
