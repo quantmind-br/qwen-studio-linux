@@ -180,6 +180,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        if: secrets.RELEASE_APP_ID != '' && secrets.RELEASE_APP_PRIVATE_KEY != ''
         id: app-token
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
@@ -194,7 +195,7 @@ jobs:
           name: upstream-detection
           path: .stage/upstream
       - env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           FAILED_STAGE: detect=${{ needs.detect.result }}, ingest=${{ needs.ingest.result }}, build=${{ needs.build.result }}, release=${{ needs.release.result }}
         run: |
