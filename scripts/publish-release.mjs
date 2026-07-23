@@ -82,7 +82,7 @@ for (const asset of release.assets ?? []) {
   const item = expected.get(asset.name);
   assert(item, `Unexpected draft asset ${asset.name}`);
   assert(asset.size === item.size, `Draft asset size differs: ${asset.name}`);
-  const response = await fetch(asset.browser_download_url, { headers: { Authorization: `Bearer ${token}` } });
+  const response = await fetch(`https://api.github.com/repos/${repository}/releases/assets/${asset.id}`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/octet-stream", "User-Agent": "qwen-studio-linux-release", "X-GitHub-Api-Version": "2022-11-28" } });
   assert(response.ok, `Cannot download draft asset ${asset.name}`);
   const digest = createHash("sha256").update(Buffer.from(await response.arrayBuffer())).digest("hex");
   assert(digest === item.sha256, `Draft asset digest differs: ${asset.name}`);
