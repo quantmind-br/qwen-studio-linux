@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "skills": {
+    "bytenode-v8-re": {
+      "source": "/home/diogo/dev/skills",
+      "sourceType": "local",
+      "computedHash": "d21f9efb12ee95642c34035ad0bdf41203481d02ee052ae277214a6ca79ff5a8"
+    },
+    "ghidra": {
+      "source": "/home/diogo/dev/skills",
+      "sourceType": "local",
+      "computedHash": "04dce4111e04c719d9dd0797ce4987531db473b02ea7a258ec8b6594d9ba1455"
+    },
+    "js-ts-deobfuscation": {
+      "source": "/home/diogo/dev/skills",
+      "sourceType": "local",
+      "computedHash": "818a8c1fe72846ab89ab53a7bbda5549aaf7b9f51796e5c59398e701384d5f33"
+    },
+    "pi-local-code-orchestrator": {
+      "source": "/home/diogo/dev/skills",
+      "sourceType": "local",
+      "computedHash": "ac6d997e04df3b5dc3e2dbbd605fb677b362224e8c4831f85b4c55b847822726"
+    }
+  }
+}

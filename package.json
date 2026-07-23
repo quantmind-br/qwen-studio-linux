@@ -1,0 +1,29 @@
+{
+  "name": "qwen-linux-port",
+  "productName": "Qwen",
+  "version": "1.0.2",
+  "description": "Reproducible Linux x86_64 package for Qwen 1.0.2",
+  "main": "out/main/index.js",
+  "desktopName": "com.qwen.chat.desktop",
+  "author": "qwen.ai",
+  "homepage": "https://chat.qwen.ai/",
+  "license": "UNLICENSED",
+  "private": true,
+  "packageManager": "npm@12.0.1",
+  "scripts": {
+    "prepare:linux": "node scripts/prepare-linux.mjs",
+    "package:dir": "npm run prepare:linux && electron-builder --linux dir --x64 --config electron-builder.yml",
+    "package:linux": "npm run prepare:linux && electron-builder --linux AppImage deb --x64 --config electron-builder.yml",
+    "verify:package": "node scripts/verify-linux-package.mjs",
+    "verify:mcp": "node scripts/verify-mcp.mjs",
+    "test": "npm run verify:package && npm run verify:mcp"
+  },
+  "devDependencies": {
+    "@electron/asar": "4.2.1",
+    "electron": "35.1.4",
+    "electron-builder": "26.15.3"
+  },
+  "allowScripts": {
+    "electron@35.1.4": true
+  }
+}

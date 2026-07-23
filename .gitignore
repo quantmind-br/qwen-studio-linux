@@ -1,0 +1,10 @@
+node_modules/
+.cache/
+.stage/
+dist/
+build/icons/
+*.log
+*.dmg
+extract/
+.agents/
+.claude/

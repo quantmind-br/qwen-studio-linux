@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="connect-src *" />
+    <title>Qwen</title>
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="aplus-core" content="aplus.js" />
+    <script>
+      // aplus sdk(AEM底层数据上报依赖A+ SDK)
+      ;(function (w, d, s, q) {
+        w[q] = w[q] || []
+        var f = d.getElementsByTagName(s)[0],
+          j = d.createElement(s)
+        j.async = true
+        j.id = 'beacon-aplus'
+        j.setAttribute('exparams', 'userid=&aplus&sidx=aplusSidex&ckx=aplusCkx')
+        j.src = 'https://g.alicdn.com/alilog/mlog/aplus_v2.js'
+        j.crossorigin = 'anonymous'
+        f.parentNode.insertBefore(j, f)
+      })(window, document, 'script', 'aplus_queue')
+    </script>
+    <script src="https://g.alicdn.com/aes/??tracker/3.3.9/index.js,tracker-plugin-pv/3.0.6/index.js,tracker-plugin-event/3.0.0/index.js,tracker-plugin-jserror/3.0.3/index.js,tracker-plugin-api/3.1.3/index.js,tracker-plugin-resourceError/3.0.4/index.js,tracker-plugin-perf/3.1.0/index.js,tracker-plugin-eventTiming/3.0.0/index.js,tracker-plugin-autolog/3.0.13/index.js,tracker-plugin-blank/3.0.1/index.js,tracker-plugin-longtask/3.0.1/index.js"></script>
+    <script>
+      const aes = new AES({
+        pid: 'RfGbWG'
+      })
+      var AES_PLUGINS = aes.use([
+        AESPluginPV,
+        AESPluginResourceError,
+        AESPluginAutolog,
+        AESPluginEventTiming,
+        AESPluginPerf
+      ])
+
+      aes.use(AESPluginBlank, {
+        plugin_blank_target: '#root',
+        plugin_blank_when: ['error', 'leave'],
+        plugin_blank_tester: function (target) {
+          if (target) {
+            if (target.children.length === 0) return false
+            return true
+          } else {
+            return false
+          }
+        }
+      })
+
+      window.aesSendError = aes.use(AESPluginJSError, {
+        disable_unhandled_rejection: true
+      }).sendError
+      aesSendError()
+    </script>
+    <script type="module" crossorigin src="./assets/index-BKr6zKEn.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-6nx0nkfj.css">
+  </head>
+
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

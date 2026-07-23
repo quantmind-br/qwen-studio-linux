@@ -1,0 +1,25 @@
+{
+  "name": "Qwen",
+  "version": "1.0.2",
+  "description": "An Electron application with React and TypeScript",
+  "main": "./out/main/index.js",
+  "author": "qwen.ai",
+  "homepage": "https://chat.qwen.ai/",
+  "dependencies": {
+    "@ali/aes-tracker": "^3.3.11",
+    "@ali/aes-tracker-plugin-event": "^3.0.0",
+    "@ali/spark-mcp": "1.0.5-beta.12",
+    "@electron-toolkit/preload": "^3.0.1",
+    "@electron-toolkit/utils": "^4.0.0",
+    "@modelcontextprotocol/sdk": "^1.13.0",
+    "cross-env": "^7.0.3",
+    "electron-log": "^5.3.4",
+    "electron-settings": "^4.0.4",
+    "electron-updater": "^6.3.9",
+    "electron-window-state": "^5.0.3",
+    "i18next": "^25.1.2",
+    "i18next-fs-backend": "^2.6.0",
+    "zod": "^3.25.67"
+  },
+  "repository": "git@gitlab.alibaba-inc.com:qwenx/qwen-electron.git"
+}
