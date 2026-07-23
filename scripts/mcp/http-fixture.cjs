@@ -15,7 +15,7 @@ async function main() {
     importPackaged("node_modules/@modelcontextprotocol/sdk/dist/esm/server/sse.js"),
     importPackaged("node_modules/@modelcontextprotocol/sdk/dist/esm/server/streamableHttp.js"),
     importPackaged("node_modules/@modelcontextprotocol/sdk/dist/esm/types.js"),
-    importPackaged("node_modules/zod/dist/esm/index.js"),
+    importPackaged("node_modules/zod/index.js"),
   ]);
 
   const createMcpServer = () => {

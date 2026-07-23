@@ -131,14 +131,13 @@ async function verify() {
       `...process.platform !== "linux" || process.env.APPIMAGE ? [checkUpdateItem, { type: "separator" }] : []`,
       `path.join(electron.app.getAppPath(), "i18n")`, `path.join(electron.app.getAppPath(), "assets/icon.png")`,
       `platform: process.platform, arch: process.arch`, `function cloneMcpConfig(configs)`,
-      `function sanitizePersistedMcpConfig(configs, stripInheritedEnv = false)`, `sanitizePersistedMcpConfig(savedConfig, true)`,
-      `await mcpServer.setMCPServers(adaptConfig(cloneMcpConfig(sanitized)))`, `const pendingEvents = [];`,
-      `electron.ipcMain.on("event-listener-ready", flushPendingEventType);`, `MimeType=x-scheme-handler/qwen;`,
-      `repairLinuxDesktopEntry(existing, appImagePath)`, `electron.app.requestSingleInstanceLock()`,
-      `if (hasSingleInstanceLock) electron.app.whenReady().then(async () => {`,
+      `function sanitizePersistedMcpConfig(configs, stripInheritedEnv = false)`,
+      `sanitizePersistedMcpConfig(config, true)`, `sanitizePersistedMcpConfig(await mcpServer.getMCPServers(), true)`,
+      `MimeType=x-scheme-handler/qwen;`, `repairLinuxDesktopEntry(existing, appImagePath)`,
+      `electron.app.requestSingleInstanceLock()`,
     ]) assert(main.includes(marker), `Packaged main process lacks marker: ${marker}`);
     const preload = await readFile(join(temporary, "out/preload/index.js"), "utf8");
-    assert(preload.includes(`electron.ipcRenderer.send("event-listener-ready", type);`), "Packaged preload lacks event listener ready handshake");
+    assert(preload.includes(`normalizeFilesystemConfig(config)`), "Packaged preload lacks Filesystem IPC normalization");
     const renderer = await readFile(await resolveRendererBundle(temporary, `if (grantedButton.isConnected) grantedButton.click();`), "utf8");
     assert(renderer.includes(`new MutationObserver(scheduleMcpPermissionGrant)`), "Packaged renderer lacks MCP permission observer");
   } finally {

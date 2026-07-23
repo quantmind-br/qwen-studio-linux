@@ -74,8 +74,8 @@ async function verifyProxyPathPatch(main) {
   assert(main.includes(`if (arch === "x64") return "linux-x64";`), "Packaged Linux platform mapping is absent");
   const bun = join(resourcesDir, "bun/linux-x64/bun");
   const uvx = join(resourcesDir, "python/linux-x64/uvx");
-  assert(main.includes(`cmd = getBunPath()`), "Bun command rewrite is absent");
-  assert(main.includes(`cmd = getUvxPath()`), "uvx command rewrite is absent");
+  assert(main.includes(`return getBunPath()`), "Bun command rewrite is absent");
+  assert(main.includes(`return getUvxPath()`), "uvx command rewrite is absent");
   return { bun, uvx };
 }
 
@@ -86,10 +86,10 @@ function runPackagedAdaptConfig(main, configs) {
   assert(start !== -1 && end !== -1, "Could not isolate packaged adaptConfig implementation");
   const implementation = main.slice(start, end + endMarker.length);
   const sandbox = {
-    electron: { app: { getAppPath: () => extracted } },
+    electron: { app: { getAppPath: () => extracted, isPackaged: true } },
     os: { platform: () => "linux", arch: () => "x64" },
     path: { join },
-    process: { resourcesPath: resourcesDir, env: {} },
+    process: { resourcesPath: resourcesDir, env: { PATH: process.env.PATH } },
     utils: { is: { dev: false } },
     configs: structuredClone(configs),
     result: undefined,
