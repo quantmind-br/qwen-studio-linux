@@ -174,17 +174,20 @@ jobs:
     needs: [detect, ingest, build, release]
     if: always() && needs.detect.result != 'cancelled' && needs.detect.outputs.action != 'noop'
     runs-on: ubuntu-24.04
+    env:
+      RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
+      RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           fetch-depth: 1
           persist-credentials: false
       - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
-        if: secrets.RELEASE_APP_ID != '' && secrets.RELEASE_APP_PRIVATE_KEY != ''
+        if: env.RELEASE_APP_ID != '' && env.RELEASE_APP_PRIVATE_KEY != ''
         id: app-token
         with:
-          app-id: ${{ secrets.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          app-id: ${{ env.RELEASE_APP_ID }}
+          private-key: ${{ env.RELEASE_APP_PRIVATE_KEY }}
           owner: quantmind-br
           repositories: qwen-studio-linux
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
