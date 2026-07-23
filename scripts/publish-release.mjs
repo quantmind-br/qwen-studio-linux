@@ -94,7 +94,7 @@ for (const [name, item] of expected) {
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/octet-stream", "Content-Length": String(item.size) },
     body: await readFile(item.path),
   });
-  assert(response.ok, `Asset upload failed for ${name}: ${response.status} ${await response.text()}`);
+  if (!response.ok) throw new Error(`Asset upload failed for ${name}: ${response.status} ${await response.text()}`);
 }
 release = await api(`/repos/${repository}/releases/${release.id}`);
 assert(release.assets.length === expectedNames.length, `Draft has ${release.assets.length} assets, expected ${expectedNames.length}`);

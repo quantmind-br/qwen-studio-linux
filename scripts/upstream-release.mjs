@@ -137,7 +137,7 @@ async function githubJson(path, token = process.env.GITHUB_TOKEN) {
     signal: AbortSignal.timeout(30_000),
   });
   if (response.status === 404) return null;
-  assert(response.ok, `GitHub API ${path} failed with ${response.status}: ${await response.text()}`);
+  if (!response.ok) throw new Error(`GitHub API ${path} failed with ${response.status}: ${await response.text()}`);
   return await response.json();
 }
 
