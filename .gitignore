@@ -6,5 +6,6 @@ build/icons/
 *.log
 *.dmg
 extract/
+asar-src/
 .agents/
 .claude/

@@ -20,7 +20,9 @@ protocols:
   - name: Qwen Protocol
     schemes:
       - qwen
-publish: null
+publish:
+  provider: generic
+  url: https://github.com/quantmind-br/qwen-studio-linux-releases/releases/latest/download/
 linux:
   category: Network
   executableName: qwen
@@ -41,3 +43,6 @@ appImage:
   artifactName: Qwen-${version}-linux-x86_64.${ext}
 deb:
   artifactName: qwen_${version}_amd64.${ext}
+afterPack: scripts/after-pack.mjs
+afterAllArtifactBuild: scripts/after-all-artifact-build.mjs
+artifactBuildCompleted: scripts/artifact-build-completed.mjs

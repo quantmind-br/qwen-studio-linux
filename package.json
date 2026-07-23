@@ -11,17 +11,21 @@
   "private": true,
   "packageManager": "npm@12.0.1",
   "scripts": {
+    "upstream:detect": "node scripts/upstream-release.mjs detect",
+    "upstream:ingest": "node scripts/upstream-release.mjs ingest",
     "prepare:linux": "node scripts/prepare-linux.mjs",
-    "package:dir": "npm run prepare:linux && electron-builder --linux dir --x64 --config electron-builder.yml",
-    "package:linux": "npm run prepare:linux && electron-builder --linux AppImage deb --x64 --config electron-builder.yml",
+    "package:dir": "npm run prepare:linux && electron-builder --linux dir --x64 --config electron-builder.yml --publish never",
+    "package:linux": "npm run prepare:linux && electron-builder --linux AppImage deb --x64 --config electron-builder.yml --publish never",
     "verify:package": "node scripts/verify-linux-package.mjs",
     "verify:mcp": "node scripts/verify-mcp.mjs",
-    "test": "npm run verify:package && npm run verify:mcp"
+    "test:upstream": "node --test scripts/upstream-release.test.mjs",
+    "test": "npm run test:upstream && npm run verify:package && npm run verify:mcp"
   },
   "devDependencies": {
     "@electron/asar": "4.2.1",
     "electron": "35.1.4",
-    "electron-builder": "26.15.3"
+    "electron-builder": "26.15.3",
+    "yaml": "2.8.1"
   },
   "allowScripts": {
     "electron@35.1.4": true
