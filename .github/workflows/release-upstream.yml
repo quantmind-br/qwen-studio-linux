@@ -108,8 +108,12 @@ jobs:
         with:
           name: upstream-ingest
           path: .stage/upstream
-      - run: tar -xzf .stage/upstream/qwen-upstream-ingest.tar.gz
-      - run: mkdir -p .stage/upstream && cp release.json .stage/upstream/release.json && cp latest-mac.yml .stage/upstream/latest-mac.yml
+      - run: |
+          rm -rf asar-src extract release.json latest-mac.yml
+          tar -xzf .stage/upstream/qwen-upstream-ingest.tar.gz
+          mkdir -p .stage/upstream
+          cp release.json .stage/upstream/release.json
+          cp latest-mac.yml .stage/upstream/latest-mac.yml
       - run: npm run package:linux
       - run: node scripts/verify-linux-package.mjs --layout=unpacked --root=dist/linux-unpacked
       - run: |
