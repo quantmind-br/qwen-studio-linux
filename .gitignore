@@ -9,3 +9,5 @@ extract/
 asar-src/
 .agents/
 .claude/
+# Local Pi runtime state
+.atl/

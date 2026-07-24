@@ -1,0 +1,61 @@
+strict_tdd: true
+context: |
+  qwen-linux-port is a Node.js/TypeScript, Node.js/TypeScript ESM, Python project.
+  Detected markers: package.json, npm package manager, asar-src/package.json, asar-src/npm package manager, .stage/app/package.json, .stage/app/npm package manager, .stage/ci-ingest/asar-src/package.json, .stage/ci-ingest/asar-src/npm package manager, .agents/skills/js-ts-deobfuscation/scripts/package.json, .agents/skills/js-ts-deobfuscation/scripts/npm package manager, GitHub Actions.
+  Package managers: npm.
+  Additional evidence: Test-like files detected (79); examples: .agents/skills/bytenode-v8-re/evaluation/tests/fixtures/ir/v8dasm_branch.txt, .agents/skills/bytenode-v8-re/evaluation/tests/fixtures/ir/v8dasm_closure.txt, .agents/skills/bytenode-v8-re/evaluation/tests/fixtures/ir/v8dasm_constants.txt, .agents/skills/bytenode-v8-re/evaluation/tests/fixtures/ir/v8dasm_exception.txt, .agents/skills/bytenode-v8-re/evaluation/tests/fixtures/ir/v8dasm_frame_size_non_header.txt.
+  Primary test command: npm test.
+  Unit tests: package script (npm test); package script (cd .agents/skills/js-ts-deobfuscation/scripts && npm test); pytest (pytest).
+  Integration tests: none.
+  E2E tests: none.
+rules:
+  proposal:
+    require_problem_statement: true
+  spec:
+    require_acceptance_criteria: true
+  design:
+    require_tradeoffs: true
+  tasks:
+    protect_review_workload: true
+  apply:
+    test_command: "npm test"
+  verify:
+    test_command: "npm test"
+testing:
+  detected: "2026-07-23"
+  runner:
+    command: "npm test"
+    framework: "package script"
+  layers:
+    unit: "package script, package script, pytest"
+    integration: ""
+    e2e: ""
+  commands:
+    unit:
+      - scope: "."
+        command: "npm test"
+        framework: "package script"
+      - scope: ".agents/skills/js-ts-deobfuscation/scripts"
+        command: "cd .agents/skills/js-ts-deobfuscation/scripts && npm test"
+        framework: "package script"
+      - scope: "."
+        command: "pytest"
+        framework: "pytest"
+    integration:
+      []
+    e2e:
+      []
+  coverage:
+    command: ""
+    commands:
+      []
+quality:
+  lint: ""
+  lint_commands:
+    []
+  typecheck: ""
+  typecheck_commands:
+    []
+  format: ""
+  format_commands:
+    []

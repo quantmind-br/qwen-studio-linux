@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { access, mkdtemp, open, readFile, rm, stat } from "node:fs/promises";
+import { access, mkdtemp, open, readdir, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
@@ -11,8 +11,9 @@ import { assertCanonicalVersion, PUBLIC_UPDATE_URL, resolveRendererBundle } from
 const root = resolve(import.meta.dirname, "..");
 const layout = process.argv.find((arg) => arg.startsWith("--layout="))?.slice(9) ?? "unpacked";
 const targetRoot = resolve(root, process.argv.find((arg) => arg.startsWith("--root="))?.slice(7) ?? "dist/linux-unpacked");
-const resourcesDir = layout === "deb" ? join(targetRoot, "opt/Qwen/resources") : join(targetRoot, "resources");
-const executable = layout === "deb" ? join(targetRoot, "opt/Qwen/qwen") : join(targetRoot, "qwen");
+const isSystemPackage = layout === "deb" || layout === "pacman";
+const resourcesDir = isSystemPackage ? join(targetRoot, "opt/Qwen/resources") : join(targetRoot, "resources");
+const executable = isSystemPackage ? join(targetRoot, "opt/Qwen/qwen") : join(targetRoot, "qwen");
 const desktopCandidates = layout === "appimage"
   ? [join(targetRoot, "com.qwen.chat.desktop"), join(targetRoot, "usr/share/applications/com.qwen.chat.desktop")]
   : [join(targetRoot, "usr/share/applications/com.qwen.chat.desktop")];
@@ -88,6 +89,7 @@ async function verifyUpdateMetadata(version) {
     assert(config.provider === "generic" && config.url === PUBLIC_UPDATE_URL, "AppImage app-update.yml has the wrong provider or URL");
   } else {
     assert(!(await exists(appUpdatePath)), `Updater metadata must not exist for ${layout}`);
+    if (layout === "pacman") assert(!(await exists(join(resourcesDir, "package-type"))), "package-type marker must not exist for pacman");
   }
   assert(!(await exists(join(resourcesDir, "latest-linux.yml"))), "latest-linux.yml must not be embedded in resources");
   assert(!(await exists(join(targetRoot, "latest-linux.yml"))), "latest-linux.yml must not exist inside the package root");
@@ -95,9 +97,12 @@ async function verifyUpdateMetadata(version) {
   const appImage = join(root, `dist/Qwen-${version}-linux-x86_64.AppImage`);
   const deb = join(root, `dist/qwen_${version}_amd64.deb`);
   const latestPath = join(root, "dist/latest-linux.yml");
-  if (!(await exists(appImage)) && !(await exists(deb)) && !(await exists(latestPath))) return;
+  const pacman = join(root, `dist/qwen-${version}-1-x86_64.pkg.tar.zst`);
+  if (!(await exists(appImage)) && !(await exists(deb)) && !(await exists(latestPath)) && !(await exists(pacman))) return;
   assert(await exists(appImage), `Expected AppImage missing: ${basename(appImage)}`);
   assert(await exists(deb), `Expected DEB missing: ${basename(deb)}`);
+  assert(await exists(pacman), `Expected pacman archive missing: ${basename(pacman)}`);
+  assert((await stat(pacman)).size > 0, `pacman archive is empty: ${basename(pacman)}`);
   assert(await exists(latestPath), "latest-linux.yml is missing");
   assert(!(await exists(`${appImage}.blockmap`)), "A separate AppImage blockmap must not be published");
   const latest = parse(await readFile(latestPath, "utf8"));
@@ -108,6 +113,41 @@ async function verifyUpdateMetadata(version) {
   assert(file.size === (await stat(appImage)).size, "latest-linux.yml AppImage size mismatch");
   assert(file.sha512 === await hashFile(appImage, "sha512", "base64"), "latest-linux.yml AppImage SHA-512 mismatch");
   assert(Number.isSafeInteger(file.blockMapSize) && file.blockMapSize > 0, "latest-linux.yml blockMapSize is missing or invalid");
+}
+
+const PACMAN_DEPENDS = [
+  "alsa-lib", "at-spi2-core", "dbus", "gtk3", "libdrm", "libnotify", "libx11",
+  "libxcomposite", "libxdamage", "libxext", "libxfixes", "libxkbcommon",
+  "libxrandr", "libxss", "mesa", "nspr", "nss",
+];
+
+async function verifyPacmanMetadata(version) {
+  const pkgInfoPath = join(targetRoot, ".PKGINFO");
+  assert(await exists(pkgInfoPath), `.PKGINFO missing: ${pkgInfoPath}`);
+  const fields = new Map();
+  const depends = [];
+  for (const line of (await readFile(pkgInfoPath, "utf8")).split("\n")) {
+    const match = /^(\w+)\s*=\s*(.*)$/.exec(line);
+    if (!match) continue;
+    const [, key, value] = match;
+    if (key === "depend") depends.push(value);
+    else fields.set(key, value);
+  }
+  assert(fields.get("pkgname") === "qwen", `.PKGINFO pkgname is ${fields.get("pkgname")}, expected qwen`);
+  assert(fields.get("pkgver") === `${version}-1`, `.PKGINFO pkgver is ${fields.get("pkgver")}, expected ${version}-1`);
+  assert(fields.get("arch") === "x86_64", `.PKGINFO arch is ${fields.get("arch")}, expected x86_64`);
+  assert(fields.get("url") === "https://chat.qwen.ai/", `.PKGINFO url is ${fields.get("url")}, expected https://chat.qwen.ai/`);
+  assert(fields.get("packager") === "qwen.ai", `.PKGINFO packager is ${fields.get("packager")}, expected qwen.ai`);
+  assert(new Set(depends).size === depends.length, `.PKGINFO has duplicate dependency entries: ${depends.join(", ")}`);
+  assert(JSON.stringify([...depends].sort()) === JSON.stringify([...PACMAN_DEPENDS].sort()), `.PKGINFO dependency set differs: ${depends.join(", ")}`);
+  assert(await exists(join(targetRoot, ".MTREE")), ".MTREE missing from pacman package");
+  assert(await exists(join(targetRoot, ".INSTALL")), ".INSTALL missing from pacman package");
+  const tree = (await readdir(targetRoot, { recursive: true })).map((entry) => entry.split("/").join("/"));
+  const treeSet = new Set(tree);
+  for (const required of ["opt/Qwen/qwen", "opt/Qwen/resources/app.asar", "usr/share/applications/com.qwen.chat.desktop"]) {
+    assert(treeSet.has(required), `pacman package missing file: ${required}`);
+  }
+  assert(tree.some((entry) => /^usr\/share\/icons\/hicolor\/[^/]+\/apps\/qwen\.png$/.test(entry)), "pacman package missing hicolor qwen.png icon");
 }
 
 async function verify() {
@@ -153,6 +193,7 @@ async function verify() {
   assert((await runCapture(uvx, ["--version"])).stdout === "uvx 0.7.14", "uvx version is not 0.7.14");
   await verifyUpdateMetadata(version);
   await verifyDesktop();
+  if (layout === "pacman") await verifyPacmanMetadata(version);
   console.log(`Verified Linux package layout: ${targetRoot}`);
 }
 

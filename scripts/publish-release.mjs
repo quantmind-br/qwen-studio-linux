@@ -45,6 +45,7 @@ const tag = `qwen-v${provenance.version}`;
 const expectedNames = [
   `Qwen-${provenance.version}-linux-x86_64.AppImage`,
   `qwen_${provenance.version}_amd64.deb`,
+  `qwen-${provenance.version}-1-x86_64.pkg.tar.zst`,
   "latest-linux.yml",
   "SHA256SUMS",
   "upstream-release.json",

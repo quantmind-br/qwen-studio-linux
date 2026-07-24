@@ -15,7 +15,7 @@
     "upstream:ingest": "node scripts/upstream-release.mjs ingest",
     "prepare:linux": "node scripts/prepare-linux.mjs",
     "package:dir": "npm run prepare:linux && electron-builder --linux dir --x64 --config electron-builder.yml --publish never",
-    "package:linux": "npm run prepare:linux && electron-builder --linux AppImage deb --x64 --config electron-builder.yml --publish never",
+    "package:linux": "npm run prepare:linux && electron-builder --linux AppImage deb pacman --x64 --config electron-builder.yml --publish never",
     "verify:package": "node scripts/verify-linux-package.mjs",
     "verify:mcp": "node scripts/verify-mcp.mjs",
     "test:upstream": "node --test scripts/upstream-release.test.mjs",

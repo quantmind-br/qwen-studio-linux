@@ -99,7 +99,7 @@ jobs:
           cache: npm
       - run: npm install --global npm@${NPM_VERSION}
       - run: npm ci
-      - run: sudo apt-get update && sudo apt-get install -y imagemagick fakeroot dpkg squashfs-tools xvfb libgtk-3-0 libnss3 libasound2t64 libxss1 libgbm1 libnotify4 libatspi2.0-0 libdrm2 libxkbcommon0
+      - run: sudo apt-get update && sudo apt-get install -y imagemagick fakeroot dpkg squashfs-tools libarchive-tools zstd xvfb libgtk-3-0 libnss3 libasound2t64 libxss1 libgbm1 libnotify4 libatspi2.0-0 libdrm2 libxkbcommon0
       - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: .cache/downloads
@@ -117,25 +117,30 @@ jobs:
       - run: npm run package:linux
       - run: node scripts/verify-linux-package.mjs --layout=unpacked --root=dist/linux-unpacked
       - run: |
-          rm -rf .stage/appimage-root .stage/deb-root
+          rm -rf .stage/appimage-root .stage/deb-root .stage/pacman-root
           dist/Qwen-${{ needs.detect.outputs.version }}-linux-x86_64.AppImage --appimage-extract >/dev/null
           mv squashfs-root .stage/appimage-root
           dpkg-deb -x dist/qwen_${{ needs.detect.outputs.version }}_amd64.deb .stage/deb-root
+          mkdir -p .stage/pacman-root
+          bsdtar -xpf dist/qwen-${{ needs.detect.outputs.version }}-1-x86_64.pkg.tar.zst -C .stage/pacman-root
           node scripts/verify-linux-package.mjs --layout=appimage --root=.stage/appimage-root
           node scripts/verify-linux-package.mjs --layout=deb --root=.stage/deb-root
+          node scripts/verify-linux-package.mjs --layout=pacman --root=.stage/pacman-root
       - run: npm test
       - run: xvfb-run -a node scripts/smoke-linux.mjs --version=${{ needs.detect.outputs.version }}
       - run: xvfb-run -a node scripts/smoke-updater-mode.mjs
       - run: xvfb-run -a node scripts/smoke-updater-mode.mjs --appimage=dist/Qwen-${{ needs.detect.outputs.version }}-linux-x86_64.AppImage --expect-requests
+      - run: xvfb-run -a node scripts/smoke-updater-mode.mjs --executable=.stage/pacman-root/opt/Qwen/qwen
       - run: |
           mkdir -p .stage/release-assets
           cp dist/Qwen-${{ needs.detect.outputs.version }}-linux-x86_64.AppImage .stage/release-assets/
           cp dist/qwen_${{ needs.detect.outputs.version }}_amd64.deb .stage/release-assets/
+          cp dist/qwen-${{ needs.detect.outputs.version }}-1-x86_64.pkg.tar.zst .stage/release-assets/
           cp dist/latest-linux.yml .stage/release-assets/
           cp .stage/upstream/release.json .stage/release-assets/upstream-release.json
           cp .stage/upstream/latest-mac.yml .stage/release-assets/upstream-latest-mac.yml
           cd .stage/release-assets
-          sha256sum Qwen-${{ needs.detect.outputs.version }}-linux-x86_64.AppImage qwen_${{ needs.detect.outputs.version }}_amd64.deb latest-linux.yml upstream-release.json upstream-latest-mac.yml > SHA256SUMS
+          sha256sum Qwen-${{ needs.detect.outputs.version }}-linux-x86_64.AppImage qwen_${{ needs.detect.outputs.version }}_amd64.deb qwen-${{ needs.detect.outputs.version }}-1-x86_64.pkg.tar.zst latest-linux.yml upstream-release.json upstream-latest-mac.yml > SHA256SUMS
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: release-assets
