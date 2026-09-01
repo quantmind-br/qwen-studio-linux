@@ -109,7 +109,7 @@ const adaptedBun = runPackagedAdaptConfig(packagedMain, {
 });
 assert(adaptedBun.bun.command === bun, `adaptConfig rewrote bun to ${adaptedBun.bun.command}, expected ${bun}`);
 const adaptedUvx = runPackagedAdaptConfig(packagedMain, {
-  uvx: { command: "uvx", args: ["--from", "mcp-server-time==2025.7.1", "mcp-server-time"], transportType: "stdio", env: fixtureEnv },
+  uvx: { command: "uvx", args: ["--from", "mcp-server-time==2025.7.1", "--with", "mcp==1.29.1", "mcp-server-time"], transportType: "stdio", env: fixtureEnv },
 });
 assert(adaptedUvx.uvx.command === uvx, `adaptConfig rewrote uvx to ${adaptedUvx.uvx.command}, expected ${uvx}`);
 assert(adaptedBun.bun.env.QWEN_PACKAGED_APP_DIR === extracted, "adaptConfig dropped QWEN_PACKAGED_APP_DIR for Bun");
