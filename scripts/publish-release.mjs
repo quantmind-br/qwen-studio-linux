@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { open, readFile, readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import process from "node:process";
+import { fetchRetry, githubHeaders } from "./lib/http.mjs";
+import { reconcilePublishedAssets } from "./lib/release-assets.mjs";
 
 const repository = "quantmind-br/qwen-studio-linux-releases";
 const root = resolve(import.meta.dirname, "..");
@@ -25,16 +27,7 @@ async function sha256(path) {
 }
 
 async function api(path, options = {}) {
-  const response = await fetch(`https://api.github.com${path}`, {
-    ...options,
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "User-Agent": "qwen-studio-linux-release",
-      "X-GitHub-Api-Version": "2022-11-28",
-      ...options.headers,
-    },
-  });
+  const response = await fetchRetry(`https://api.github.com${path}`, { ...options, headers: githubHeaders(token, options.headers) });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`GitHub API ${path} failed with ${response.status}: ${await response.text()}`);
   return response.status === 204 ? null : await response.json();
@@ -63,12 +56,9 @@ const matching = (releases ?? []).filter((entry) => entry.tag_name === tag);
 assert(matching.length <= 1, `Multiple releases share tag ${tag}`);
 let release = matching[0] ?? null;
 if (release && !release.draft) {
-  assert(release.assets.length === expected.size, "Published release is incomplete");
-  for (const asset of release.assets) {
-    const item = expected.get(asset.name);
-    assert(item && asset.size === item.size, `Published asset differs: ${asset.name}`);
-  }
-  process.stdout.write(`${JSON.stringify({ action: "noop", tag })}\n`);
+  const { missing } = reconcilePublishedAssets(expectedNames, expected, release.assets);
+  if (missing.length > 0) process.stderr.write(`Published ${tag} predates the current asset set and is left untouched; missing: ${missing.join(", ")}\n`);
+  process.stdout.write(`${JSON.stringify({ action: "noop", tag, missing })}\n`);
   process.exit(0);
 }
 if (!release) {
@@ -83,18 +73,18 @@ for (const asset of release.assets ?? []) {
   const item = expected.get(asset.name);
   assert(item, `Unexpected draft asset ${asset.name}`);
   assert(asset.size === item.size, `Draft asset size differs: ${asset.name}`);
-  const response = await fetch(`https://api.github.com/repos/${repository}/releases/assets/${asset.id}`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/octet-stream", "User-Agent": "qwen-studio-linux-release", "X-GitHub-Api-Version": "2022-11-28" } });
+  const response = await fetchRetry(`https://api.github.com/repos/${repository}/releases/assets/${asset.id}`, { headers: githubHeaders(token, { Accept: "application/octet-stream" }) }, { timeoutMs: 10 * 60_000 });
   assert(response.ok, `Cannot download draft asset ${asset.name}`);
   const digest = createHash("sha256").update(Buffer.from(await response.arrayBuffer())).digest("hex");
   assert(digest === item.sha256, `Draft asset digest differs: ${asset.name}`);
   expected.delete(asset.name);
 }
 for (const [name, item] of expected) {
-  const response = await fetch(`${release.upload_url.replace("{?name,label}", "")}?name=${encodeURIComponent(name)}`, {
+  const response = await fetchRetry(`${release.upload_url.replace("{?name,label}", "")}?name=${encodeURIComponent(name)}`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/octet-stream", "Content-Length": String(item.size) },
+    headers: githubHeaders(token, { "Content-Type": "application/octet-stream", "Content-Length": String(item.size) }),
     body: await readFile(item.path),
-  });
+  }, { timeoutMs: 15 * 60_000 });
   if (!response.ok) throw new Error(`Asset upload failed for ${name}: ${response.status} ${await response.text()}`);
 }
 release = await api(`/repos/${repository}/releases/${release.id}`);

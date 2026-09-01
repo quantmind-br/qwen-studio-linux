@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseManifest } from "./upstream-release.mjs";
+import { isForceRecheck, parseManifest, publishedState } from "./upstream-release.mjs";
 
 const digest = Buffer.alloc(64, 7).toString("base64");
 const base = {
@@ -49,4 +49,76 @@ test("rejects two DMG entries", () => {
 
 test("rejects manifests larger than one MiB", () => {
   assert.throws(() => parseManifest(Buffer.alloc(1024 * 1024 + 1)), /exceeds 1 MiB/);
+});
+
+const detected = { version: "1.0.5", build: 163, identity: "e40a8403" };
+const provenanceUrl = { tagged: "https://assets.invalid/tagged/upstream-release.json", latest: "https://assets.invalid/latest/upstream-release.json" };
+
+function releaseWithProvenance(url, draft = false) {
+  return { draft, assets: [{ name: "upstream-release.json", browser_download_url: url }] };
+}
+
+async function withGithubRoutes(routes, run) {
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    const fragment = Object.keys(routes).find((candidate) => href.includes(candidate));
+    assert.ok(fragment, `Unexpected request: ${href}`);
+    const value = routes[fragment];
+    return value === null ? new Response("", { status: 404 }) : Response.json(value);
+  };
+  try {
+    return await run();
+  } finally {
+    globalThis.fetch = original;
+  }
+}
+
+test("reports a noop when the published identity matches", async () => {
+  const state = await withGithubRoutes({
+    "releases/tags/": releaseWithProvenance(provenanceUrl.tagged),
+    "tagged/upstream-release.json": { ...detected },
+  }, () => publishedState(detected, false));
+  assert.deepEqual(state, { action: "noop", reason: "identity already published" });
+});
+
+test("forces a rebuild of an already published identity when force_recheck is set", async () => {
+  const state = await withGithubRoutes({
+    "releases/tags/": releaseWithProvenance(provenanceUrl.tagged),
+    "tagged/upstream-release.json": { ...detected },
+  }, () => publishedState(detected, true));
+  assert.equal(state.action, "build");
+  assert.match(state.reason, /forced recheck/);
+});
+
+test("still fails a forced recheck when the published build was repacked", async () => {
+  const state = await withGithubRoutes({
+    "releases/tags/": releaseWithProvenance(provenanceUrl.tagged),
+    "tagged/upstream-release.json": { ...detected, identity: "deadbeef" },
+  }, () => publishedState(detected, true));
+  assert.equal(state.action, "fail");
+  assert.match(state.reason, /suspected repack/);
+});
+
+test("fails a rollback below the published latest release", async () => {
+  const state = await withGithubRoutes({
+    "releases/tags/": null,
+    "releases/latest": releaseWithProvenance(provenanceUrl.latest),
+    "latest/upstream-release.json": { version: "1.0.6", build: 1, identity: "newer" },
+  }, () => publishedState(detected, false));
+  assert.equal(state.action, "fail");
+  assert.match(state.reason, /rollback below published 1\.0\.6 build 1/);
+});
+
+test("builds a new upstream identity", async () => {
+  const state = await withGithubRoutes({
+    "releases/tags/": null,
+    "releases/latest": null,
+  }, () => publishedState(detected, false));
+  assert.deepEqual(state, { action: "build", reason: "new upstream identity" });
+});
+
+test("parses the force_recheck flag exactly as the workflow passes it", () => {
+  for (const value of ["true", "TRUE", " true ", "1", "yes"]) assert.equal(isForceRecheck(value), true, value);
+  for (const value of ["false", "", "0", "no", undefined, null]) assert.equal(isForceRecheck(value), false, String(value));
 });

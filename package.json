@@ -18,7 +18,7 @@
     "package:linux": "npm run prepare:linux && electron-builder --linux AppImage deb pacman --x64 --config electron-builder.yml --publish never",
     "verify:package": "node scripts/verify-linux-package.mjs",
     "verify:mcp": "node scripts/verify-mcp.mjs",
-    "test:upstream": "node --test scripts/upstream-release.test.mjs",
+    "test:upstream": "node --test scripts/upstream-release.test.mjs scripts/lib/http.test.mjs scripts/lib/release-assets.test.mjs",
     "test": "npm run test:upstream && npm run verify:package && npm run verify:mcp"
   },
   "devDependencies": {

@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import process from "node:process";
+import { fetchRetry, githubHeaders } from "./lib/http.mjs";
 
 const repository = "quantmind-br/qwen-studio-linux";
 const token = process.env.GITHUB_TOKEN;
@@ -11,16 +12,7 @@ const title = `[Qwen ${provenance.version} build ${provenance.build}] Automatic 
 const mode = process.argv[2];
 
 async function api(path, options = {}) {
-  const response = await fetch(`https://api.github.com${path}`, {
-    ...options,
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "User-Agent": "qwen-studio-linux-release",
-      "X-GitHub-Api-Version": "2022-11-28",
-      ...options.headers,
-    },
-  });
+  const response = await fetchRetry(`https://api.github.com${path}`, { ...options, headers: githubHeaders(token, options.headers) });
   if (!response.ok) throw new Error(`GitHub API ${path} failed with ${response.status}: ${await response.text()}`);
   return response.status === 204 ? null : await response.json();
 }

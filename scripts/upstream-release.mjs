@@ -7,6 +7,7 @@ import process from "node:process";
 import { extractAll } from "@electron/asar";
 import { parseDocument } from "yaml";
 import { assertCanonicalVersion } from "./lib/linux-package.mjs";
+import { fetchRetry, githubHeaders } from "./lib/http.mjs";
 
 export const MANIFEST_URL = "https://download.qwen.ai/macos/x64/latest-mac.yml";
 export const RELEASE_REPOSITORY = "quantmind-br/qwen-studio-linux-releases";
@@ -80,7 +81,7 @@ async function fetchStrict(url, { maxBytes, timeoutMs = 30_000 } = {}) {
   let current = new URL(url);
   for (let redirects = 0; redirects <= 3; redirects += 1) {
     assert(current.protocol === "https:" && current.hostname === "download.qwen.ai" && !current.port, `Rejected download URL: ${current.href}`);
-    const response = await fetch(current, { redirect: "manual", signal: AbortSignal.timeout(timeoutMs) });
+    const response = await fetchRetry(current, { redirect: "manual" }, { timeoutMs });
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       assert(redirects < 3, "Too many redirects");
       const location = response.headers.get("location");
@@ -127,29 +128,25 @@ function compareRelease(a, b) {
 }
 
 async function githubJson(path, token = process.env.GITHUB_TOKEN) {
-  const response = await fetch(`https://api.github.com${path}`, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      "User-Agent": "qwen-studio-linux-release",
-      "X-GitHub-Api-Version": "2022-11-28",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    signal: AbortSignal.timeout(30_000),
-  });
+  const response = await fetchRetry(`https://api.github.com${path}`, { headers: githubHeaders(token) });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`GitHub API ${path} failed with ${response.status}: ${await response.text()}`);
   return await response.json();
 }
 
-async function publishedState(release) {
+export function isForceRecheck(value = process.env.FORCE_RECHECK) {
+  return typeof value === "string" && ["1", "true", "yes"].includes(value.trim().toLowerCase());
+}
+
+export async function publishedState(release, force = isForceRecheck()) {
   const tagged = await githubJson(`/repos/${RELEASE_REPOSITORY}/releases/tags/qwen-v${release.version}`);
   if (tagged && !tagged.draft) {
     const provenanceAsset = tagged.assets?.find((asset) => asset.name === "upstream-release.json");
     assert(provenanceAsset, "Published release is missing upstream-release.json");
-    const response = await fetch(provenanceAsset.browser_download_url, { signal: AbortSignal.timeout(30_000) });
+    const response = await fetchRetry(provenanceAsset.browser_download_url);
     assert(response.ok, `Failed to read published provenance: ${response.status}`);
     const provenance = await response.json();
-    if (provenance.identity === release.identity) return { action: "noop", reason: "identity already published" };
+    if (provenance.identity === release.identity) return force ? { action: "build", reason: "forced recheck of published identity" } : { action: "noop", reason: "identity already published" };
     if (provenance.version === release.version && provenance.build === release.build) return { action: "fail", reason: "published version/build has a different identity (suspected repack)" };
     return { action: "fail", reason: "published tag provenance conflicts with detected upstream" };
   }
@@ -157,7 +154,7 @@ async function publishedState(release) {
   if (latest) {
     const provenanceAsset = latest.assets?.find((asset) => asset.name === "upstream-release.json");
     if (provenanceAsset) {
-      const response = await fetch(provenanceAsset.browser_download_url, { signal: AbortSignal.timeout(30_000) });
+      const response = await fetchRetry(provenanceAsset.browser_download_url);
       assert(response.ok, `Failed to read latest provenance: ${response.status}`);
       const provenance = await response.json();
       if (compareRelease(release, provenance) < 0) return { action: "fail", reason: `rollback below published ${provenance.version} build ${provenance.build}` };
@@ -174,7 +171,7 @@ async function detect() {
   await mkdir(stageDir, { recursive: true });
   await writeFile(join(stageDir, "latest-mac.yml"), source.bytes);
   await writeReleaseJson(release);
-  const state = process.env.QWEN_SKIP_RELEASE_CHECK === "1" ? { action: "build", reason: "release check skipped" } : await publishedState(release);
+  const state = process.env.QWEN_SKIP_RELEASE_CHECK === "1" ? { action: "build", reason: "release check skipped" } : await publishedState(release, isForceRecheck());
   const result = { ...release, ...state };
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
@@ -186,7 +183,7 @@ async function streamDmg(release) {
   let current = new URL(release.url);
   for (let redirects = 0; redirects <= 3; redirects += 1) {
     assert(current.protocol === "https:" && current.hostname === "download.qwen.ai" && !current.port, `Rejected DMG URL: ${current.href}`);
-    const response = await fetch(current, { redirect: "manual", signal: AbortSignal.timeout(10 * 60_000) });
+    const response = await fetchRetry(current, { redirect: "manual" }, { timeoutMs: 10 * 60_000 });
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       assert(redirects < 3, "Too many DMG redirects");
       current = new URL(response.headers.get("location"), current);
