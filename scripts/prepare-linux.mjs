@@ -4,6 +4,7 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import process from "node:process";
 import { assertCanonicalVersion, PUBLIC_UPDATE_URL, resolveRendererBundle } from "./lib/linux-package.mjs";
+import { fetchRetry } from "./lib/http.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const upstream = join(root, "asar-src");
@@ -123,7 +124,7 @@ async function downloadLocked(entry) {
 
   const temporary = `${destination}.tmp-${process.pid}-${Date.now()}`;
   try {
-    const response = await fetch(entry.url, { redirect: "follow" });
+    const response = await fetchRetry(entry.url, { redirect: "follow" }, { timeoutMs: 10 * 60_000 });
     assert(response.ok && response.body, `Download failed (${response.status}) for ${entry.url}`);
     const file = await open(temporary, "wx");
     try {
