@@ -3,7 +3,7 @@ import { open, readFile, readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import process from "node:process";
 import { fetchRetry, githubHeaders } from "./lib/http.mjs";
-import { reconcilePublishedAssets } from "./lib/release-assets.mjs";
+import { assertSameUpstreamIdentity, reconcilePublishedAssets } from "./lib/release-assets.mjs";
 
 const repository = "quantmind-br/qwen-studio-linux-releases";
 const root = resolve(import.meta.dirname, "..");
@@ -33,6 +33,12 @@ async function api(path, options = {}) {
   return response.status === 204 ? null : await response.json();
 }
 
+async function downloadAsset(asset) {
+  const response = await fetchRetry(`https://api.github.com/repos/${repository}/releases/assets/${asset.id}`, { headers: githubHeaders(token, { Accept: "application/octet-stream" }) }, { timeoutMs: 10 * 60_000 });
+  assert(response.ok, `Cannot download asset ${asset.name}: ${response.status}`);
+  return Buffer.from(await response.arrayBuffer());
+}
+
 const provenance = JSON.parse(await readFile(join(assetsDir, "upstream-release.json"), "utf8"));
 const tag = `qwen-v${provenance.version}`;
 const expectedNames = [
@@ -56,7 +62,8 @@ const matching = (releases ?? []).filter((entry) => entry.tag_name === tag);
 assert(matching.length <= 1, `Multiple releases share tag ${tag}`);
 let release = matching[0] ?? null;
 if (release && !release.draft) {
-  const { missing } = reconcilePublishedAssets(expectedNames, expected, release.assets);
+  const { missing } = reconcilePublishedAssets(expectedNames, release.assets);
+  assertSameUpstreamIdentity(JSON.parse(await downloadAsset(release.assets.find((asset) => asset.name === "upstream-release.json"))), provenance);
   if (missing.length > 0) process.stderr.write(`Published ${tag} predates the current asset set and is left untouched; missing: ${missing.join(", ")}\n`);
   process.stdout.write(`${JSON.stringify({ action: "noop", tag, missing })}\n`);
   process.exit(0);
@@ -73,9 +80,7 @@ for (const asset of release.assets ?? []) {
   const item = expected.get(asset.name);
   assert(item, `Unexpected draft asset ${asset.name}`);
   assert(asset.size === item.size, `Draft asset size differs: ${asset.name}`);
-  const response = await fetchRetry(`https://api.github.com/repos/${repository}/releases/assets/${asset.id}`, { headers: githubHeaders(token, { Accept: "application/octet-stream" }) }, { timeoutMs: 10 * 60_000 });
-  assert(response.ok, `Cannot download draft asset ${asset.name}`);
-  const digest = createHash("sha256").update(Buffer.from(await response.arrayBuffer())).digest("hex");
+  const digest = createHash("sha256").update(await downloadAsset(asset)).digest("hex");
   assert(digest === item.sha256, `Draft asset digest differs: ${asset.name}`);
   expected.delete(asset.name);
 }
